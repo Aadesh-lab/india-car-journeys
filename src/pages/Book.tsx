@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +22,29 @@ import { CalendarIcon, Users, MapPin, Phone, CreditCard } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Book = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+
+  // Check authentication on component mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Redirect to login with the current location as the return path
+      navigate('/login', { 
+        state: { from: location },
+        replace: true 
+      });
+    }
+  }, [isAuthenticated, navigate, location]);
+
   const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
+    name: user?.name || "",
+    phone: user?.phone || "",
+    email: user?.email || "",
     city: searchParams.get("city") || "",
     pickupAddress: "",
     carType: searchParams.get("carType") || "",
@@ -71,6 +86,18 @@ const Book = () => {
     });
   }, [formData.carType, formData.pickupDate, formData.returnDate]);
 
+  // Update form data when user info is available
+  useEffect(() => {
+    if (user && !formData.name) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name,
+        phone: user.phone,
+        email: user.email
+      }));
+    }
+  }, [user, formData.name]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -97,6 +124,18 @@ const Book = () => {
   const updateFormData = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Don't render the booking form if user is not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Redirecting to login...</h2>
+          <p className="text-gray-600">Please log in to continue with your booking.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
